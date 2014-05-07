@@ -421,8 +421,8 @@ namespace Xunit.Sdk
                                                                 List<BeforeAfterTestAttribute> beforeAfterAttributes,
                                                                 ExceptionAggregator parentAggregator,
                                                                 CancellationTokenSource cancellationTokenSource)
-         {
-            var executionTimeInSeconds = 0.0m;
+        {
+            var executionTime = new ExecutionTime();
             var aggregator = new ExceptionAggregator(parentAggregator);
             var output = String.Empty;  // TODO: Add output facilities for v2
 
@@ -438,7 +438,6 @@ namespace Xunit.Sdk
                 else
                 {
                     var beforeAttributesRun = new Stack<BeforeAfterTestAttribute>();
-                    var executionTime = new ExecutionTime();
 
                     if (!aggregator.HasExceptions)
                         await aggregator.RunAsync(async () =>
@@ -503,7 +502,7 @@ namespace Xunit.Sdk
 
                                             await aggregator.RunAsync(async () =>
                                             {
-                                                executionTime.MeassureStep(async () =>
+                                                await executionTime.MeassureStepAsync(async () =>
                                                 {
                                                     var result = methodUnderTest.Invoke(testClass, Reflector.ConvertArguments(testMethodArguments, parameterTypes));
                                                     var task = result as Task;
@@ -549,7 +548,11 @@ namespace Xunit.Sdk
 
                                     try
                                     {
-                                        executionTime.MeassureStep(disposable.Dispose);
+                                        executionTime.MeassureStep(() =>
+                                        {
+                                            NotifyTestIfRequired(displayName, disposable, executionTime, aggregator, output);
+                                            disposable.Dispose();
+                                        });
                                     }
                                     finally
                                     {
@@ -562,21 +565,57 @@ namespace Xunit.Sdk
 
                     if (!cancellationTokenSource.IsCancellationRequested)
                     {
-                        executionTimeInSeconds = (decimal)executionTime.Total.TotalSeconds;
-
-                        var exception = aggregator.ToException();
-                        var testResult = exception == null ? (TestResultMessage)new TestPassed(this, displayName, executionTimeInSeconds, output)
-                                                           : new TestFailed(this, displayName, executionTimeInSeconds, output, exception);
+                        var testResult = DetermineCurrentTestResult(displayName, executionTime, aggregator, output);
                         if (!messageBus.QueueMessage(testResult))
                             cancellationTokenSource.Cancel();
                     }
                 }
             }
 
-            if (!messageBus.QueueMessage(new TestFinished(this, displayName, executionTimeInSeconds, output)))
+            if (!messageBus.QueueMessage(new TestFinished(this, displayName, executionTime.TotalSeconds, output)))
                 cancellationTokenSource.Cancel();
 
-            return executionTimeInSeconds;
+            return executionTime.TotalSeconds;
+        }
+
+        private void NotifyTestIfRequired(string displayName, object test, ExecutionTime executionTime,
+                                          ExceptionAggregator aggregator, string output)
+        {
+            var iNeedToKnowTestResult = test as INeedToKnowTestResult;
+
+            if (iNeedToKnowTestResult != null)
+            {
+                var testResult = DetermineCurrentTestResult(displayName, executionTime, aggregator, output);
+
+                var testPassed = testResult as TestPassed;
+                if (testPassed != null)
+                {
+                    var iNeedToKnowTestSuccess = iNeedToKnowTestResult as INeedToKnowTestSuccess;
+                    if (iNeedToKnowTestSuccess != null)
+                    {
+                        iNeedToKnowTestSuccess.Handle(testPassed);
+                    }
+                }
+
+                var testFailed = testResult as TestFailed;
+                if (testFailed != null)
+                {
+                    var iNeedToKnowTestFailure = iNeedToKnowTestResult as INeedToKnowTestFailure;
+                    if (iNeedToKnowTestFailure != null)
+                    {
+                        iNeedToKnowTestFailure.Handle(testFailed);
+                    }
+                }
+            }
+        }
+
+        private TestResultMessage DetermineCurrentTestResult(string displayName, ExecutionTime executionTime,
+                                                            ExceptionAggregator aggregator, string output)
+        {
+            var exception = aggregator.ToException();
+            var testResult = exception == null ? (TestResultMessage)new TestPassed(this, displayName, executionTime.TotalSeconds, output)
+                                               : new TestFailed(this, displayName, executionTime.TotalSeconds, output, exception);
+            return testResult;
         }
 
         [SecuritySafeCritical]
@@ -585,18 +624,38 @@ namespace Xunit.Sdk
             SynchronizationContext.SetSynchronizationContext(context);
         }
     }
-	
-	/// <summary>
+
+
+    public interface INeedToKnowTestSuccess : INeedToKnowTestResult
+    {
+        void Handle(TestPassed result);
+    }
+
+    public interface INeedToKnowTestFailure : INeedToKnowTestResult
+    {
+        void Handle(TestFailed result);
+    }
+
+
+    public interface INeedToKnowTestResult
+    {
+    }
+
+    /// <summary>
     /// Meassurs execution time of a processes made out of set of steps
     /// </summary>
     public class ExecutionTime
     {
         private TimeSpan total;
 
-        /// <summary>
-        /// Executes a step, meassures its execution time and adds it to the current value of the total execution time.
-        /// </summary>
-        /// <param name="step"></param>
+        public async Task MeassureStepAsync(Func<Task> step)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            await step();
+            stopwatch.Stop();
+            total = total + stopwatch.Elapsed;
+        }
+
         public void MeassureStep(Action step)
         {
             var stopwatch = Stopwatch.StartNew();
@@ -608,6 +667,11 @@ namespace Xunit.Sdk
         public TimeSpan Total
         {
             get { return total; }
+        }
+
+        public decimal TotalSeconds
+        {
+            get { return (decimal)total.TotalSeconds; }
         }
     }
 }
