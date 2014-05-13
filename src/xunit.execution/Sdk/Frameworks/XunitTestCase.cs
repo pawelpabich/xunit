@@ -426,104 +426,86 @@ namespace Xunit.Sdk
             var aggregator = new ExceptionAggregator(parentAggregator);
             var output = String.Empty;  // TODO: Add output facilities for v2
 
-            if (!messageBus.QueueMessage(new TestStarting(this, displayName)))
-                cancellationTokenSource.Cancel();
+            if (!messageBus.QueueMessage(new TestStarting(this, displayName))) cancellationTokenSource.Cancel();
             else
             {
                 if (!String.IsNullOrEmpty(SkipReason))
                 {
-                    if (!messageBus.QueueMessage(new TestSkipped(this, displayName, SkipReason)))
-                        cancellationTokenSource.Cancel();
+                    if (!messageBus.QueueMessage(new TestSkipped(this, displayName, SkipReason))) cancellationTokenSource.Cancel();
                 }
                 else
                 {
                     var beforeAttributesRun = new Stack<BeforeAfterTestAttribute>();
 
                     if (!aggregator.HasExceptions)
-                        await aggregator.RunAsync(async () =>
+                        aggregator.Run(() =>
                         {
                             object testClass = null;
 
-                            if (!methodUnderTest.IsStatic)
-                            {
-                                if (!messageBus.QueueMessage(new TestClassConstructionStarting(this, displayName)))
-                                    cancellationTokenSource.Cancel();
-
-                                try
-                                {
-                                    if (!cancellationTokenSource.IsCancellationRequested)
-                                    {
-                                        executionTime.MeassureStep(() => testClass = Activator.CreateInstance(classUnderTest, constructorArguments));
-                                    }
-                                }
-                                finally
-                                {
-                                    if (!messageBus.QueueMessage(new TestClassConstructionFinished(this, displayName)))
-                                        cancellationTokenSource.Cancel();
-                                }
-                            }
+                            testClass = CreateTest(messageBus, classUnderTest, constructorArguments, methodUnderTest, displayName, cancellationTokenSource, executionTime);
 
                             if (!cancellationTokenSource.IsCancellationRequested)
                             {
-                                await aggregator.RunAsync(async () =>
+                                foreach (var beforeAfterAttribute in beforeAfterAttributes)
                                 {
-                                    foreach (var beforeAfterAttribute in beforeAfterAttributes)
+                                    var attributeName = beforeAfterAttribute.GetType().Name;
+                                    if (!messageBus.QueueMessage(new BeforeTestStarting(this, displayName, attributeName)))
+                                        cancellationTokenSource.Cancel();
+                                    else
                                     {
-                                        var attributeName = beforeAfterAttribute.GetType().Name;
-                                        if (!messageBus.QueueMessage(new BeforeTestStarting(this, displayName, attributeName)))
-                                            cancellationTokenSource.Cancel();
-                                        else
-                                        {
-                                            try
-                                            {
-                                                executionTime.MeassureStep(() => beforeAfterAttribute.Before(methodUnderTest));
-                                                beforeAttributesRun.Push(beforeAfterAttribute);
-                                            }
-                                            finally
-                                            {
-                                                if (!messageBus.QueueMessage(new BeforeTestFinished(this, displayName, attributeName)))
-                                                    cancellationTokenSource.Cancel();
-                                            }
-                                        }
-
-                                        if (cancellationTokenSource.IsCancellationRequested)
-                                            return;
-                                    }
-
-                                    if (!cancellationTokenSource.IsCancellationRequested)
-                                    {
-                                        var parameterTypes = methodUnderTest.GetParameters().Select(p => p.ParameterType).ToArray();
-                                        var oldSyncContext = SynchronizationContext.Current;
-
                                         try
                                         {
-                                            var asyncSyncContext = new AsyncTestSyncContext();
-                                            SetSynchronizationContext(asyncSyncContext);
-
-                                            await aggregator.RunAsync(async () =>
-                                            {
-                                                await executionTime.MeassureStepAsync(async () =>
-                                                {
-                                                    var result = methodUnderTest.Invoke(testClass, Reflector.ConvertArguments(testMethodArguments, parameterTypes));
-                                                    var task = result as Task;
-                                                    if (task != null)
-                                                        await task;
-                                                    else
-                                                    {
-                                                        var ex = await asyncSyncContext.WaitForCompletionAsync();
-                                                        if (ex != null)
-                                                            aggregator.Add(ex);
-                                                    }
-
-                                                });
-                                            });
+                                            executionTime.MeassureStep(() => beforeAfterAttribute.Before(methodUnderTest));
+                                            beforeAttributesRun.Push(beforeAfterAttribute);
                                         }
                                         finally
                                         {
-                                            SetSynchronizationContext(oldSyncContext);
+                                            if (!messageBus.QueueMessage(new BeforeTestFinished(this, displayName, attributeName)))
+                                                cancellationTokenSource.Cancel();
                                         }
                                     }
-                                });
+
+                                    if (cancellationTokenSource.IsCancellationRequested)
+                                        return;
+                                }
+
+                                if (!cancellationTokenSource.IsCancellationRequested)
+                                {
+                                    var parameterTypes = methodUnderTest.GetParameters().Select(p => p.ParameterType).ToArray();
+                                    var oldSyncContext = SynchronizationContext.Current;
+
+                                    try
+                                    {
+                                        var asyncSyncContext = new AsyncTestSyncContext();
+                                        SetSynchronizationContext(asyncSyncContext);
+
+                                        aggregator.Run(() =>
+                                        {
+                                            var result = executionTime.MeassureStep(() => methodUnderTest.Invoke(testClass, Reflector.ConvertArguments(testMethodArguments, parameterTypes)));
+
+                                            var task = result as Task;
+
+                                            executionTime.MeassureStep(() =>
+                                            {
+                                                //Hack: Calling wait to make sure the whole test is executed on the same thread from the beginning to the end
+                                                // There must a better way of doing this ...
+                                                if (task != null) task.Wait();
+                                                else
+                                                {
+                                                    var waitForCompletion = asyncSyncContext.WaitForCompletionAsync();
+                                                    waitForCompletion.Wait();
+                                                    var ex = waitForCompletion.Result;
+                                                    if (ex != null) aggregator.Add(ex);
+                                                }
+
+                                            });
+                                        });
+                                    }
+                                    finally
+                                    {
+                                        SetSynchronizationContext(oldSyncContext);
+                                    }
+                                }
 
                                 foreach (var beforeAfterAttribute in beforeAttributesRun)
                                 {
@@ -531,36 +513,33 @@ namespace Xunit.Sdk
                                     if (!messageBus.QueueMessage(new AfterTestStarting(this, displayName, attributeName)))
                                         cancellationTokenSource.Cancel();
 
-                                    aggregator.Run(() => executionTime.MeassureStep(() => beforeAfterAttribute.After(methodUnderTest)));
+                                    executionTime.MeassureStep(() => beforeAfterAttribute.After(methodUnderTest));
 
                                     if (!messageBus.QueueMessage(new AfterTestFinished(this, displayName, attributeName)))
                                         cancellationTokenSource.Cancel();
                                 }
                             }
 
-                            aggregator.Run(() =>
+                            var disposable = testClass as IDisposable;
+                            if (disposable != null)
                             {
-                                var disposable = testClass as IDisposable;
-                                if (disposable != null)
-                                {
-                                    if (!messageBus.QueueMessage(new TestClassDisposeStarting(this, displayName)))
-                                        cancellationTokenSource.Cancel();
+                                if (!messageBus.QueueMessage(new TestClassDisposeStarting(this, displayName)))
+                                    cancellationTokenSource.Cancel();
 
-                                    try
+                                try
+                                {
+                                    executionTime.MeassureStep(() =>
                                     {
-                                        executionTime.MeassureStep(() =>
-                                        {
-                                            NotifyTestIfRequired(displayName, disposable, executionTime, aggregator, output);
-                                            disposable.Dispose();
-                                        });
-                                    }
-                                    finally
-                                    {
-                                        if (!messageBus.QueueMessage(new TestClassDisposeFinished(this, displayName)))
-                                            cancellationTokenSource.Cancel();
-                                    }
+                                        NotifyTestIfRequired(displayName, disposable, executionTime, aggregator, output);
+                                        disposable.Dispose();
+                                    });
                                 }
-                            });
+                                finally
+                                {
+                                    if (!messageBus.QueueMessage(new TestClassDisposeFinished(this, displayName)))
+                                        cancellationTokenSource.Cancel();
+                                }
+                            }
                         });
 
                     if (!cancellationTokenSource.IsCancellationRequested)
@@ -576,6 +555,32 @@ namespace Xunit.Sdk
                 cancellationTokenSource.Cancel();
 
             return executionTime.TotalSeconds;
+        }
+
+        private object CreateTest(IMessageBus messageBus, Type classUnderTest, object[] constructorArguments,
+            MethodInfo methodUnderTest, string displayName, CancellationTokenSource cancellationTokenSource,
+            ExecutionTime executionTime)
+        {
+            object testClass = null;
+            if (!methodUnderTest.IsStatic)
+            {
+                if (!messageBus.QueueMessage(new TestClassConstructionStarting(this, displayName)))
+                    cancellationTokenSource.Cancel();
+
+                try
+                {
+                    if (!cancellationTokenSource.IsCancellationRequested)
+                    {
+                        executionTime.MeassureStep(() => testClass = Activator.CreateInstance(classUnderTest, constructorArguments));
+                    }
+                }
+                finally
+                {
+                    if (!messageBus.QueueMessage(new TestClassConstructionFinished(this, displayName)))
+                        cancellationTokenSource.Cancel();
+                }
+            }
+            return testClass;
         }
 
         private void NotifyTestIfRequired(string displayName, object test, ExecutionTime executionTime,
@@ -662,6 +667,16 @@ namespace Xunit.Sdk
             step();
             stopwatch.Stop();
             total = total + stopwatch.Elapsed;
+        }
+
+        public TResult MeassureStep<TResult>(Func<TResult> step)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var result = step();
+            stopwatch.Stop();
+            total = total + stopwatch.Elapsed;
+
+            return result;
         }
 
         public TimeSpan Total
