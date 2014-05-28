@@ -201,7 +201,6 @@ namespace Xunit.ConsoleClient
             {
                 if (!ValidateFileExists(consoleLock, assembly.AssemblyFilename) || !ValidateFileExists(consoleLock, assembly.ConfigFilename))
                     return null;
-
                 using (var controller = new XunitFrontController(assembly.AssemblyFilename, assembly.ConfigFilename, assembly.ShadowCopy))
                 using (var discoveryVisitor = new TestDiscoveryVisitor())
                 {
@@ -210,6 +209,20 @@ namespace Xunit.ConsoleClient
 
                     var executionOptions = new XunitExecutionOptions { DisableParallelization = !parallelizeTestCollections, MaxParallelThreads = maxThreadCount };
                     var resultsVisitor = CreateVisitor(consoleLock, defaultDirectory, assemblyElement, teamCity, silent);
+                    var alltestCases = String.Join(Environment.NewLine, discoveryVisitor.TestCases.Select(tc => tc.DisplayName));
+                    var filtered = String.Join(Environment.NewLine, discoveryVisitor.TestCases.Where(filters.Filter).Select(tc => tc.DisplayName));
+                    var excludes = String.Join(Environment.NewLine, filters.ExcludedTraits.Select(t => t.Key + ":" + String.Join(",", t.Value)));
+                    var includes = String.Join(Environment.NewLine, filters.IncludedTraits.Select(t => t.Key + ":" + String.Join(",", t.Value)));
+
+                    Console.WriteLine("Includes: {0}", includes);
+                    Console.WriteLine("Excludes: {0}", excludes);
+
+                    Console.WriteLine("Filtered test cases");
+                    Console.WriteLine(filtered);
+
+                    Console.WriteLine("All test cases");
+                    Console.WriteLine(alltestCases);
+                    
                     controller.RunTests(discoveryVisitor.TestCases.Where(filters.Filter).ToList(), resultsVisitor, executionOptions);
                     resultsVisitor.Finished.WaitOne();
                 }
