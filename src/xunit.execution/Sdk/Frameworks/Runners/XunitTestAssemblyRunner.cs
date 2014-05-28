@@ -101,15 +101,18 @@ namespace Xunit.Sdk
         {
             if (disableParallelization)
                 return await base.RunTestCollectionsAsync(messageBus, cancellationTokenSource);
+            var testCollections = TestCases.Cast<IXunitTestCase>()
+                                           .GroupBy(tc => tc.TestCollection, TestCollectionComparer.Instance)
+                                           .ToArray();
 
-            var tasks = TestCases.Cast<IXunitTestCase>()
-                                 .GroupBy(tc => tc.TestCollection, TestCollectionComparer.Instance)
-                                 .Select(collectionGroup => Task.Factory.StartNew(() => RunTestCollectionAsync(messageBus, collectionGroup.Key, collectionGroup, cancellationTokenSource),
-                                                                                  cancellationTokenSource.Token,
-                                                                                  TaskCreationOptions.None,
-                                                                                  scheduler))
-                                 .ToArray();
+            Console.WriteLine("Queueing {0} test collections.", testCollections.Length);
 
+            var tasks = testCollections.Select(collectionGroup => Task.Factory.StartNew(() => RunTestCollectionAsync(messageBus, collectionGroup.Key, collectionGroup, cancellationTokenSource),
+                                                                                              cancellationTokenSource.Token,
+                                                                                              TaskCreationOptions.None,
+                                                                                              scheduler))
+                                       .ToArray();
+                        
             var summaries = await Task.WhenAll(tasks.Select(t => t.Unwrap()));
 
             return new RunSummary()

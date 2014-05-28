@@ -16,6 +16,12 @@ namespace Xunit
         /// By default, generates a collection per test class for any test classes that are not
         /// decorated with <see cref="CollectionAttribute"/>.
         /// </summary>
-        CollectionPerClass
+        CollectionPerClass,
+
+        /// <summary>
+        /// By default, generates a collection per test method for any test classes that are not
+        /// decorated with <see cref="CollectionAttribute"/>.
+        /// </summary>
+        CollectionPerMethod
     }
 }

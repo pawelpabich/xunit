@@ -93,11 +93,11 @@ namespace Xunit.Sdk
         /// <inheritdoc/>
         protected override bool FindTestsForType(ITypeInfo type, bool includeSourceInformation, IMessageBus messageBus)
         {
-            var testCollection = TestCollectionFactory.Get(type);
-
             foreach (var method in type.GetMethods(includePrivateMethods: true))
-                if (!FindTestsForMethod(testCollection, type, method, includeSourceInformation, messageBus))
-                    return false;
+            {
+                var testCollection = TestCollectionFactory.Get(method);
+                if (!FindTestsForMethod(testCollection, type, method, includeSourceInformation, messageBus))return false;
+            }
 
             return true;
         }

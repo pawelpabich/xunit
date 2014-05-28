@@ -77,6 +77,7 @@
     <Compile Include="Extensions\ReflectionAbstractionExtensions.cs" />
     <Compile Include="Sdk\AsyncTestSyncContext.cs" />
     <Compile Include="Sdk\DefaultTestCaseOrderer.cs" />
+    <Compile Include="Sdk\Frameworks\CollectionPerClassTestCollectionFactory.cs" />
     <Compile Include="Sdk\Frameworks\Runners\TestAssemblyRunner.cs" />
     <Compile Include="Sdk\Frameworks\Runners\TestClassRunner.cs" />
     <Compile Include="Sdk\Frameworks\Runners\TestCollectionRunner.cs" />
@@ -96,7 +97,7 @@
     <Compile Include="Sdk\EnvironmentalWarning.cs" />
     <Compile Include="Sdk\ExceptionUtility.cs" />
     <Compile Include="Sdk\MessageAggregator.cs" />
-    <Compile Include="Sdk\Frameworks\CollectionPerClassTestCollectionFactory.cs" />
+    <Compile Include="Sdk\Frameworks\CollectionPerMethodTestCollectionFactory.cs" />
     <Compile Include="Sdk\Frameworks\LambdaTestCase.cs" />
     <Compile Include="Sdk\Frameworks\TestCollectionFactoryHelper.cs" />
     <Compile Include="Sdk\Frameworks\XunitTestCollection.cs" />

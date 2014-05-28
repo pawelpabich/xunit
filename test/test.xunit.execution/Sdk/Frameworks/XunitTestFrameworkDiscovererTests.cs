@@ -35,6 +35,7 @@ public class XunitTestFrameworkDiscovererTests
         [Theory]
         [InlineData(CollectionBehavior.CollectionPerAssembly, typeof(CollectionPerAssemblyTestCollectionFactory), "collection-per-assembly")]
         [InlineData(CollectionBehavior.CollectionPerClass, typeof(CollectionPerClassTestCollectionFactory), "collection-per-class")]
+        [InlineData(CollectionBehavior.CollectionPerMethod, typeof(CollectionPerMethodTestCollectionFactory), "collection-per-method")]
         public static void UserCanChooseFromBuiltInCollectionFactories_NonParallel(CollectionBehavior behavior, Type expectedType, string expectedDisplayText)
         {
             var attr = Mocks.CollectionBehaviorAttribute(behavior, disableTestParallelization: true);
@@ -67,7 +68,7 @@ public class XunitTestFrameworkDiscovererTests
 
             public MyTestCollectionFactory(IAssemblyInfo assembly) { }
 
-            public ITestCollection Get(ITypeInfo testClass)
+            public ITestCollection Get(IMethodInfo methodInfo)
             {
                 throw new NotImplementedException();
             }
@@ -96,7 +97,7 @@ public class XunitTestFrameworkDiscovererTests
                 get { throw new NotImplementedException(); }
             }
 
-            public ITestCollection Get(ITypeInfo testClass)
+            public ITestCollection Get(IMethodInfo testMethod)
             {
                 throw new NotImplementedException();
             }

@@ -49,11 +49,11 @@ namespace Xunit.Sdk
         }
 
         /// <inheritdoc/>
-        public ITestCollection Get(ITypeInfo testClass)
+        public ITestCollection Get(IMethodInfo testMethod)
         {
+            var testClass = testMethod.Type;
             var collectionAttribute = testClass.GetCustomAttributes(typeof(CollectionAttribute)).SingleOrDefault();
-            if (collectionAttribute == null)
-                return defaultCollection;
+            if (collectionAttribute == null) return defaultCollection;
 
             var collectionName = (string)collectionAttribute.GetConstructorArguments().First();
             return testCollections.GetOrAdd(collectionName, CreateTestCollection);

@@ -154,8 +154,13 @@ namespace Xunit.Sdk
 
             if (ctorArgs.Count == 1)
             {
-                if ((CollectionBehavior)ctorArgs[0] == CollectionBehavior.CollectionPerAssembly)
+                var collectionBehaviour = (CollectionBehavior) ctorArgs[0];
+
+                if (collectionBehaviour == CollectionBehavior.CollectionPerAssembly)
                     return typeof(CollectionPerAssemblyTestCollectionFactory);
+
+                if (collectionBehaviour == CollectionBehavior.CollectionPerMethod)
+                    return typeof(CollectionPerMethodTestCollectionFactory);
 
                 return typeof(CollectionPerClassTestCollectionFactory);
             }
