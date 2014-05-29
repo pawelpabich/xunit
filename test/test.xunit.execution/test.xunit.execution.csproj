@@ -88,6 +88,7 @@
     <Compile Include="Sdk\ArgumentFormatterTests.cs" />
     <Compile Include="Sdk\DefaultTestCaseOrdererTests.cs" />
     <Compile Include="Sdk\Frameworks\CollectionPerAssemblyTestCollectionFactoryTests.cs" />
+    <Compile Include="Sdk\Frameworks\CollectionPerMethodTestCollectionFactoryTests.cs" />
     <Compile Include="Sdk\Frameworks\CollectionPerClassTestCollectionFactoryTests.cs" />
     <Compile Include="Sdk\Frameworks\XunitTestCaseTests.cs" />
     <Compile Include="Sdk\Frameworks\XunitTestFrameworkDiscovererTests.cs" />
