@@ -64,6 +64,11 @@ namespace Xunit.Sdk
         protected ITestCaseOrderer TestCaseOrderer { get; set; }
 
         /// <summary>
+        /// Gets or sets the test collection orderer that will be used to decide how to order test collections.
+        /// </summary>
+        protected ITestCollectionOrderer TestCollectionOrderer { get; set; }
+
+        /// <summary>
         /// Gets or sets the test cases to be run.
         /// </summary>
         protected IEnumerable<TTestCase> TestCases { get; set; }

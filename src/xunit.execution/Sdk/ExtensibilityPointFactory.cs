@@ -79,6 +79,14 @@ namespace Xunit.Sdk
         }
 
         /// <summary>
+        /// Gets a test collection orderer.
+        /// </summary>
+        public static ITestCollectionOrderer GetTestCollectionOrderer(Type ordererType)
+        {
+            return Get<ITestCollectionOrderer>(ordererType);
+        }
+
+        /// <summary>
         /// Gets a test case orderer, as specified in a reflected <see cref="TestCaseOrdererAttribute"/>.
         /// </summary>
         /// <param name="testCaseOrdererAttribute">The test case orderer attribute.</param>
@@ -91,6 +99,17 @@ namespace Xunit.Sdk
                 return null;
 
             return GetTestCaseOrderer(ordererType);
+        }
+
+
+        public static ITestCollectionOrderer GetTestCollectionOrderer(IAttributeInfo testCollectionOrdererAttribute)
+        {
+            var args = testCollectionOrdererAttribute.GetConstructorArguments().Cast<string>().ToList();
+            var ordererType = Reflector.GetType(args[1], args[0]);
+            if (ordererType == null)
+                return null;
+
+            return GetTestCollectionOrderer(ordererType);
         }
 
         /// <summary>

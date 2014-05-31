@@ -92,20 +92,25 @@ namespace Xunit.Sdk
             scheduler = GetTaskScheduler(maxParallelThreads);
 
             var ordererAttribute = AssemblyInfo.GetCustomAttributes(typeof(TestCaseOrdererAttribute)).SingleOrDefault();
-            if (ordererAttribute != null)
-                TestCaseOrderer = ExtensibilityPointFactory.GetTestCaseOrderer(ordererAttribute);
+            if (ordererAttribute != null) TestCaseOrderer = ExtensibilityPointFactory.GetTestCaseOrderer(ordererAttribute);
+
+            var collectionOrdererAttribute = AssemblyInfo.GetCustomAttributes(typeof(TestCollectionOrdererAttribute)).SingleOrDefault();
+            if (collectionOrdererAttribute != null) TestCollectionOrderer = ExtensibilityPointFactory.GetTestCollectionOrderer(collectionOrdererAttribute);
         }
 
         /// <inheritdoc/>
         protected override async Task<RunSummary> RunTestCollectionsAsync(IMessageBus messageBus, CancellationTokenSource cancellationTokenSource)
         {
-            if (disableParallelization)
-                return await base.RunTestCollectionsAsync(messageBus, cancellationTokenSource);
-            var testCollections = TestCases.Cast<IXunitTestCase>()
-                                           .GroupBy(tc => tc.TestCollection, TestCollectionComparer.Instance)
-                                           .ToArray();
+            if (disableParallelization) return await base.RunTestCollectionsAsync(messageBus, cancellationTokenSource);
+            var testCollections = TestCases.GroupBy(tc => tc.TestCollection, TestCollectionComparer.Instance).ToArray();
+            if (TestCollectionOrderer != null)
+            {
+                testCollections = TestCollectionOrderer.OrderTestCollections(testCollections).ToArray();
+            }
 
+            var order = testCollections.Aggregate(String.Empty, (value, group) => value + Environment.NewLine + group.Key.DisplayName);                
             Console.WriteLine("Queueing {0} test collections.", testCollections.Length);
+            Console.WriteLine("Test collection will be queued in the following order: {0}", order);
 
             var tasks = testCollections.Select(collectionGroup => Task.Factory.StartNew(() => RunTestCollectionAsync(messageBus, collectionGroup.Key, collectionGroup, cancellationTokenSource),
                                                                                               cancellationTokenSource.Token,

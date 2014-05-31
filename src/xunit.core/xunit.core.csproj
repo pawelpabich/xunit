@@ -56,6 +56,8 @@
     <Compile Include="CollectionBehavior.cs" />
     <Compile Include="CollectionBehaviorAttribute.cs" />
     <Compile Include="CollectionDefinitionAttribute.cs" />
+    <Compile Include="Sdk\ITestCollectionOrderer.cs" />
+    <Compile Include="TestCollectionOrdererAttribute.cs" />
     <Compile Include="FactAttribute.cs" />
     <Compile Include="IClassFixture.cs" />
     <Compile Include="ICollectionFixture.cs" />
