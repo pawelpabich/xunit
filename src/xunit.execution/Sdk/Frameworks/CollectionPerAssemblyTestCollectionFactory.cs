@@ -51,9 +51,9 @@ namespace Xunit.Sdk
             return new XunitTestCollection(testAssembly, definitionType, name);
         }
 
-        /// <inheritdoc/>
-        public ITestCollection Get(ITypeInfo testClass)
+        public ITestCollection Get(IMethodInfo testMethod)
         {
+            var testClass = testMethod.Type;
             var collectionAttribute = testClass.GetCustomAttributes(typeof(CollectionAttribute)).SingleOrDefault();
             if (collectionAttribute == null)
                 return defaultCollection;

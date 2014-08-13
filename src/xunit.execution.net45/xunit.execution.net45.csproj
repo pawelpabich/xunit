@@ -89,6 +89,18 @@
     <Compile Include="..\xunit.assert\Asserts\Sdk\AssertEqualityComparerAdapter.cs">
       <Link>Sdk\AssertEqualityComparerAdapter.cs</Link>
     </Compile>
+    <Compile Include="Sdk\Frameworks\CollectionPerMethodTestCollectionFactory.cs" />
+    <Compile Include="Sdk\Frameworks\FactDiscovererCustom.cs" />
+    <Compile Include="Sdk\Frameworks\Runners\XunitTestAssemblyRunnerCustom.cs" />
+    <Compile Include="Sdk\Frameworks\Runners\XunitTestCaseRunnerCustom.cs" />
+    <Compile Include="Sdk\Frameworks\Runners\XunitTestClassRunnerCustom.cs" />
+    <Compile Include="Sdk\Frameworks\Runners\XunitTestCollectionRunnerCustom.cs" />
+    <Compile Include="Sdk\Frameworks\Runners\XunitTestInvokerCustom.cs" />
+    <Compile Include="Sdk\Frameworks\Runners\XunitTestMethodRunnerCustom.cs" />
+    <Compile Include="Sdk\Frameworks\Runners\XunitTestRunnerCustom.cs" />
+    <Compile Include="Sdk\Frameworks\XunitTestCaseCustom.cs" />
+    <Compile Include="Sdk\Frameworks\XunitTestFrameworkCustom.cs" />
+    <Compile Include="Sdk\Frameworks\XunitTestFrameworkExecutorCustom.cs" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\xunit.execution\**\*.cs">

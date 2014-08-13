@@ -16,10 +16,10 @@ namespace Xunit.Sdk
         string DisplayName { get; }
 
         /// <summary>
-        /// Gets the test collection for a given test class.
+        /// Gets the test collection for a given test method.
         /// </summary>
-        /// <param name="testClass">The test class.</param>
+        /// <param name="testMethod">The test method.</param>
         /// <returns>The test collection.</returns>
-        ITestCollection Get(ITypeInfo testClass);
+        ITestCollection Get(IMethodInfo testMethod);
     }
 }
